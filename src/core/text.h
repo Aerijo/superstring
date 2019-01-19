@@ -1,6 +1,7 @@
 #ifndef SUPERSTRING_TEXT_H_
 #define SUPERSTRING_TEXT_H_
 
+#include <char8_t.h>
 #include <istream>
 #include <functional>
 #include <vector>
@@ -20,28 +21,28 @@ class Text {
   friend class TextSlice;
 
  public:
-  static Point extent(const std::u16string &);
+  static Point extent(const std::string &);
 
-  std::u16string content;
+  std::string content;
   std::vector<uint32_t> line_offsets;
-  Text(const std::u16string &&, const std::vector<uint32_t> &&);
+  Text(const std::string &&, const std::vector<uint32_t> &&);
 
-  using const_iterator = std::u16string::const_iterator;
+  using const_iterator = std::string::const_iterator;
 
   Text();
-  Text(const std::u16string &);
-  Text(std::u16string &&);
+  Text(const std::string &);
+  Text(std::string &&);
   Text(TextSlice slice);
   Text(Deserializer &deserializer);
   template<typename Iter>
-  Text(Iter begin, Iter end) : Text(std::u16string{begin, end}) {}
+  Text(Iter begin, Iter end) : Text(std::string{begin, end}) {}
 
   static Text concat(TextSlice a, TextSlice b);
   static Text concat(TextSlice a, TextSlice b, TextSlice c);
   void splice(Point start, Point deletion_extent, TextSlice inserted_slice);
 
-  uint16_t at(Point position) const;
-  uint16_t at(uint32_t offset) const;
+  uint16_t at (Point position) const;
+  uint16_t at (uint32_t offset) const;
   const_iterator begin() const;
   const_iterator end() const;
   inline const_iterator cbegin() const { return begin(); }
@@ -56,7 +57,7 @@ class Text {
   void assign(TextSlice);
   void serialize(Serializer &) const;
   uint32_t size() const;
-  const char16_t *data() const;
+  const char8_t *data() const;
   size_t digest() const;
   void clear();
 

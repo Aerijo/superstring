@@ -2,24 +2,24 @@
 #include <stdlib.h>
 #include "pcre2.h"
 
-using std::u16string;
+using std::string;
 using MatchResult = Regex::MatchResult;
 
-const char16_t EMPTY_PATTERN[] = u".{0}";
+const char8_t EMPTY_PATTERN[] = ".{0}";
 
 Regex::Regex() : code{nullptr} {}
 
-static u16string preprocess_pattern(const char16_t *pattern, uint32_t length) {
-  u16string result;
+static string preprocess_pattern(const char8_t *pattern, size_t length) {
+  string result;
   for (unsigned i = 0; i < length;) {
-    char16_t c = pattern[i];
+    char8_t c = pattern[i];
 
     // Replace escape sequences like '\u00cf' with their literal UTF16 value
     if (c == '\\' && i + 1 < length) {
       if (pattern[i + 1] == 'u') {
         if (i + 6 <= length) {
           std::string char_code_string(&pattern[i + 2], &pattern[i + 6]);
-          char16_t char_code_value = strtol(char_code_string.data(), nullptr, 16);
+          auto char_code_value = static_cast<char8_t>(strtol(char_code_string.data(), nullptr, 16));
           if (char_code_value != 0) {
             result += char_code_value;
             i += 6;
@@ -28,12 +28,12 @@ static u16string preprocess_pattern(const char16_t *pattern, uint32_t length) {
         }
 
         // Replace invalid '\u' escape sequences with the literal characters '\' and 'u'
-        result += u"\\\\u";
+        result += "\\\\u";
         i += 2;
         continue;
       } else if (pattern[i + 1] == '\\') {
         // Prevent '\\u' from UTF16 replacement
-        result += u"\\\\";
+        result += "\\\\";
         i += 2;
         continue;
       }
@@ -47,13 +47,13 @@ static u16string preprocess_pattern(const char16_t *pattern, uint32_t length) {
 }
 
 
-Regex::Regex(const char16_t *pattern, uint32_t pattern_length, u16string *error_message, bool ignore_case, bool unicode) {
+Regex::Regex(const char8_t *pattern, size_t pattern_length, string *error_message, bool ignore_case, bool unicode) {
   if (pattern_length == 0) {
     pattern = EMPTY_PATTERN;
     pattern_length = 4;
   }
 
-  u16string final_pattern = preprocess_pattern(pattern, pattern_length);
+  string final_pattern = preprocess_pattern(pattern, pattern_length);
 
   int error_number = 0;
   size_t error_offset = 0;
@@ -61,7 +61,7 @@ Regex::Regex(const char16_t *pattern, uint32_t pattern_length, u16string *error_
   if (ignore_case) options |= PCRE2_CASELESS;
   if (unicode) options |= PCRE2_UTF;
   code = pcre2_compile(
-    reinterpret_cast<const uint16_t *>(final_pattern.data()),
+    reinterpret_cast<const uint8_t *>(final_pattern.data()),
     final_pattern.size(),
     options,
     &error_number,
@@ -70,8 +70,8 @@ Regex::Regex(const char16_t *pattern, uint32_t pattern_length, u16string *error_
   );
 
   if (!code) {
-    uint16_t message_buffer[256];
-    size_t length = pcre2_get_error_message(error_number, message_buffer, 256);
+    uint8_t message_buffer[256];
+    int length = pcre2_get_error_message(error_number, message_buffer, 256);
     error_message->assign(message_buffer, message_buffer + length);
     return;
   }
@@ -82,7 +82,7 @@ Regex::Regex(const char16_t *pattern, uint32_t pattern_length, u16string *error_
   );
 }
 
-Regex::Regex(const u16string &pattern, u16string *error_message, bool ignore_case, bool unicode)
+Regex::Regex(const string &pattern, string *error_message, bool ignore_case, bool unicode)
   : Regex(pattern.data(), pattern.size(), error_message, ignore_case, unicode) {}
 
 Regex::Regex(Regex &&other) : code{other.code} {
@@ -100,7 +100,7 @@ Regex::MatchData::~MatchData() {
   pcre2_match_data_free(data);
 }
 
-MatchResult Regex::match(const char16_t *string, size_t length,
+MatchResult Regex::match(const char8_t *string, size_t length,
                          MatchData &match_data, unsigned options) const {
   MatchResult result{MatchResult::None, 0, 0};
 
@@ -111,7 +111,7 @@ MatchResult Regex::match(const char16_t *string, size_t length,
 
   int status = pcre2_match(
     code,
-    reinterpret_cast<const uint16_t *>(string),
+    reinterpret_cast<const uint8_t *>(string),
     length,
     0,
     pcre_options,

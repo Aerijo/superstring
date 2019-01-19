@@ -1,6 +1,7 @@
 #ifndef FLAT_TEXT_SLICE_H_
 #define FLAT_TEXT_SLICE_H_
 
+#include <char8_t.h>
 #include <vector>
 #include "point.h"
 #include "range.h"
@@ -30,7 +31,7 @@ class TextSlice {
   uint16_t back() const;
   bool is_valid() const;
 
-  const char16_t *data() const;
+  const char8_t *data() const;
   uint32_t size() const;
   bool empty() const;
 

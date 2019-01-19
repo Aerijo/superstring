@@ -8,16 +8,16 @@ struct Range {
   Point start;
   Point end;
 
-  static Range all_inclusive();
+  static Range all_inclusive ();
 
-  Point extent() const;
+  Point extent () const;
 
-  bool operator==(const Range &other) const {
+  bool operator == (const Range &other) const {
     return start == other.start && end == other.end;
   }
 };
 
-inline std::ostream &operator<<(std::ostream &stream, const Range &range) {
+inline std::ostream &operator << (std::ostream &stream, const Range &range) {
   return stream << "(" << range.start << ", " << range.end << ")";
 }
 

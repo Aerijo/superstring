@@ -92,7 +92,7 @@ Point TextSlice::extent() const {
   return end_position.traversal(start_position);
 }
 
-const char16_t *TextSlice::data() const {
+const char8_t *TextSlice::data() const {
   return text->data() + start_offset();
 }
 
