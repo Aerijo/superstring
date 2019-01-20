@@ -8,9 +8,9 @@ using std::ostream;
 using std::vector;
 using std::string;
 
-Text::Text() : line_offsets{0} {}
+Text::Text () : line_offsets { 0 } {}
 
-Text::Text(string &&content) : content { move(content) }, line_offsets { 0 } {
+Text::Text (string &&content) : content { move(content) }, line_offsets { 0 } {
     for (uint32_t offset = 0, size = this->content.size(); offset < size; offset++) {
         if (this->content[offset] == '\n') {
             line_offsets.push_back(offset + 1);
@@ -18,14 +18,14 @@ Text::Text(string &&content) : content { move(content) }, line_offsets { 0 } {
     }
 }
 
-Text::Text(const std::string &string) : Text(string.copy()) {}
+Text::Text (const std::string &string) : Text(string) {} // TODO: Copy const string into && version
 
-Text::Text(TextSlice slice) :
-        content{
+Text::Text (TextSlice slice) :
+        content {
                 slice.text->content.begin() + slice.start_offset(),
                 slice.text->content.begin() + slice.end_offset()
         },
-        line_offsets{} {
+        line_offsets {} {
     line_offsets.push_back(slice.start_offset());
     line_offsets.insert(
             line_offsets.end(),
@@ -38,11 +38,10 @@ Text::Text(TextSlice slice) :
     }
 }
 
-Text::Text(const string &&content, const vector<uint32_t> &&line_offsets) :
-        content{move(content)}, line_offsets{move(line_offsets)} {}
+Text::Text (const string &&content, const vector<uint32_t> &&line_offsets) : content { content }, line_offsets { line_offsets } {}
 
-Text::Text(Deserializer &deserializer) : line_offsets { 0 } {
-    uint32_t size = deserializer.read<uint32_t>();
+Text::Text (Deserializer &deserializer) : line_offsets { 0 } {
+    auto size = deserializer.read<uint32_t>();
     content.reserve(size);
     for (uint32_t offset = 0; offset < size; offset++) {
         auto character = deserializer.read<char8_t>();
@@ -51,14 +50,14 @@ Text::Text(Deserializer &deserializer) : line_offsets { 0 } {
     }
 }
 
-void Text::serialize(Serializer &serializer) const {
+void Text::serialize (Serializer &serializer) const {
     serializer.append<uint32_t>(size());
     for (auto character : content) {
         serializer.append<char8_t>(character);
     }
 }
 
-Point Text::extent(const std::string &string) {
+Point Text::extent (const std::string &string) { // TODO: Does this need multibyte support?
     Point result;
     for (auto c : string) {
         if (c == '\n') {
@@ -71,14 +70,14 @@ Point Text::extent(const std::string &string) {
     return result;
 }
 
-Text Text::concat(TextSlice a, TextSlice b) {
+Text Text::concat (TextSlice a, TextSlice b) {
     Text result;
     result.append(a);
     result.append(b);
     return result;
 }
 
-Text Text::concat(TextSlice a, TextSlice b, TextSlice c) {
+Text Text::concat (TextSlice a, TextSlice b, TextSlice c) {
     Text result;
     result.append(a);
     result.append(b);
@@ -86,13 +85,13 @@ Text Text::concat(TextSlice a, TextSlice b, TextSlice c) {
     return result;
 }
 
-void Text::clear() {
+void Text::clear () {
     content.clear();
-    line_offsets.assign({0});
+    line_offsets.assign({ 0 });
 }
 
 template<typename T>
-void splice_vector(
+void splice_vector (
         T &vector, uint32_t splice_start, uint32_t deletion_size,
         typename T::const_iterator inserted_begin,
         typename T::const_iterator inserted_end
@@ -132,10 +131,11 @@ void splice_vector(
     }
 }
 
-void Text::splice(Point start, Point deletion_extent, TextSlice inserted_slice) {
+void Text::splice (Point start, Point deletion_extent, TextSlice inserted_slice) {
     uint32_t content_splice_start = offset_for_position(start);
     uint32_t content_splice_end = offset_for_position(start.traverse(deletion_extent));
-    uint32_t original_content_size = content.size();
+    auto original_content_size = static_cast<uint32_t>(content.size()); // TODO: Assert size is never bigger
+
     splice_vector(
             content,
             content_splice_start,
@@ -155,34 +155,35 @@ void Text::splice(Point start, Point deletion_extent, TextSlice inserted_slice) 
     uint32_t inserted_newlines_start = start.row + 1;
     uint32_t inserted_newlines_end = start.row + inserted_slice.extent().row + 1;
     int64_t inserted_line_offsets_delta = content_splice_start - static_cast<int64_t>(inserted_slice.start_offset());
+
     for (size_t i = inserted_newlines_start; i < inserted_newlines_end; i++) {
         line_offsets[i] += inserted_line_offsets_delta;
     }
 
-    uint32_t content_size = content.size();
+    auto content_size = static_cast<uint32_t>(content.size()); // TODO: Assert no loss
     int64_t trailing_line_offsets_delta = static_cast<int64_t>(content_size) - original_content_size;
     for (auto iter = line_offsets.begin() + inserted_newlines_end; iter != line_offsets.end(); ++iter) {
         *iter += trailing_line_offsets_delta;
     }
 }
 
-uint16_t Text::at(uint32_t offset) const {
+char8_t Text::at (uint32_t offset) const { // TODO: Return uint32_t for proper Unicode support
     return content[offset];
 }
 
-uint16_t Text::at(Point position) const {
+char8_t Text::at (Point position) const {
     return at(offset_for_position(position));
 }
 
-ClipResult Text::clip_position(Point position) const {
+ClipResult Text::clip_position (Point position) const {
     uint32_t row = position.row;
     if (row >= line_offsets.size()) {
-        return {extent(), size()};
+        return { extent(), size() };
     } else {
         uint32_t start = line_offsets[row];
         uint32_t end;
         if (row == line_offsets.size() - 1) {
-            end = content.size();
+            end = static_cast<uint32_t>(content.size());
         } else {
             end = line_offsets[row + 1] - 1;
             if (end > 0 && content[end - 1] == '\r') {
@@ -190,73 +191,78 @@ ClipResult Text::clip_position(Point position) const {
             }
         }
         if (position.column > end - start) {
-            return {Point(row, end - start), end};
+            return { Point(row, end - start), end };
         } else {
-            return {position, start + position.column};
+            return { position, start + position.column };
         }
     }
 }
 
-uint32_t Text::offset_for_position(Point position) const {
+uint32_t Text::offset_for_position (Point position) const {
     return clip_position(position).offset;
 }
 
-Point Text::position_for_offset(uint32_t offset, uint32_t min_row, bool clip_crlf) const {
+Point Text::position_for_offset (uint32_t offset, uint32_t min_row, bool clip_crlf) const {
     if (offset > size()) offset = size();
+
     auto line_offsets_begin = line_offsets.begin() + min_row;
     auto line_offset = std::upper_bound(line_offsets_begin, line_offsets.end(), offset);
+
     if (line_offset != line_offsets_begin) line_offset--;
-    uint32_t row = min_row + (line_offset - line_offsets_begin);
+
+    uint32_t row = min_row + static_cast<uint32_t>(line_offset - line_offsets_begin);
     uint32_t column = offset - *line_offset;
+
     if (clip_crlf && offset > 0 && offset < size() && at(offset) == '\n' && at(offset - 1) == '\r') {
         column--;
     }
+
     return Point(row, column);
 }
 
-uint32_t Text::line_length_for_row(uint32_t row) const {
-    return clip_position(Point{row, UINT32_MAX}).position.column;
+uint32_t Text::line_length_for_row (uint32_t row) const {
+    return clip_position(Point { row, UINT32_MAX }).position.column;
 }
 
-Text::const_iterator Text::begin() const {
+Text::const_iterator Text::begin () const {
     return content.cbegin();
 }
 
-Text::const_iterator Text::end() const {
+Text::const_iterator Text::end () const {
     return content.cend();
 }
 
-uint32_t Text::size() const {
-    return content.size();
+uint32_t Text::size () const {
+    return static_cast<uint32_t>(content.size());
 }
 
-const char16_t *Text::data() const {
+const char8_t *Text::data () const {
     return content.data();
 }
 
-Point Text::extent() const {
-    return Point(line_offsets.size() - 1, content.size() - line_offsets.back());
+Point Text::extent () const {
+    return Point(static_cast<uint32_t>(line_offsets.size()) - 1, static_cast<uint32_t>(content.size()) - line_offsets.back());
 }
 
-bool Text::empty() const {
+bool Text::empty () const {
     return content.empty();
 }
 
-template <typename T>
-inline void hash_combine(std::size_t &seed, const T &value) {
+template<typename T>
+inline void hash_combine (std::size_t &seed, const T &value) {
     std::hash<T> hasher;
-    seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2); // What?
 }
 
-size_t Text::digest() const {
+size_t Text::digest () const {
     size_t result = 0;
-    for (uint16_t character : content) {
+    for (auto character : content) {
         hash_combine(result, character);
     }
     return result;
 }
 
-void Text::append(TextSlice slice) {
+void Text::append (TextSlice slice) {
     int64_t line_offset_delta = static_cast<int64_t>(content.size()) - static_cast<int64_t>(slice.start_offset());
 
     content.insert(
@@ -277,15 +283,12 @@ void Text::append(TextSlice slice) {
     }
 }
 
-void Text::assign(TextSlice slice) {
-    uint32_t slice_start_offset = slice.start_offset();
+void Text::assign (TextSlice slice) {
+    auto slice_start_offset = static_cast<uint32_t>(slice.start_offset());
 
-    content.assign(
-            slice.begin(),
-            slice.end()
-    );
+    content.assign(slice.begin(), slice.end());
 
-    line_offsets.assign({0});
+    line_offsets.assign({ 0 });
     line_offsets.insert(
             line_offsets.end(),
             slice.text->line_offsets.begin() + slice.start_position.row + 1,
@@ -297,23 +300,23 @@ void Text::assign(TextSlice slice) {
     }
 }
 
-bool Text::operator!=(const Text &other) const {
+bool Text::operator != (const Text &other) const {
     return content != other.content;
 }
 
-bool Text::operator==(const Text &other) const {
+bool Text::operator == (const Text &other) const {
     return content == other.content;
 }
 
-ostream &operator<<(ostream &stream, const Text &text) {
-    for (uint16_t character : text.content) {
+ostream &operator << (ostream &stream, const Text &text) {
+    for (char character : text.content) {
         if (character == '\r') {
             stream << "\\r";
         } else if (character == '\n') {
             stream << "\\n";
-        } else if (character < 255) {
-            stream << static_cast<char>(character);
-        } else {
+        } else if (character >= 0) {
+            stream << character;
+        } else { // TODO: Fix this
             stream << "\\u";
             stream << character;
         }

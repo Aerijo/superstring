@@ -12,94 +12,136 @@
 #include "marker-index.h"
 
 class TextBuffer {
-  struct Layer;
-  Layer *base_layer;
-  Layer *top_layer;
-  void squash_layers(const std::vector<Layer *> &);
-  void consolidate_layers();
+    struct Layer;
+    Layer *base_layer;
+    Layer *top_layer;
+
+    void squash_layers (const std::vector<Layer *> &);
+
+    void consolidate_layers ();
 
 public:
-  static uint32_t MAX_CHUNK_SIZE_TO_COPY;
+    static uint32_t MAX_CHUNK_SIZE_TO_COPY;
 
-  TextBuffer();
-  TextBuffer(std::string &&);
-  TextBuffer(const std::string &text);
-  ~TextBuffer();
+    TextBuffer ();
 
-  uint32_t size() const;
-  Point extent() const;
-  optional<std::string> line_for_row(uint32_t row);
-  void with_line_for_row(uint32_t row, const std::function<void(const char8_t *, uint32_t)> &);
+    explicit TextBuffer (std::string &&);
 
-  optional<uint32_t> line_length_for_row(uint32_t row);
-  const uint16_t *line_ending_for_row(uint32_t row);
-  ClipResult clip_position(Point);
-  Point position_for_offset(uint32_t offset);
-  std::string text();
-  std::string text_in_range(Range range);
-  void set_text(std::string &&);
-  void set_text(const std::string &);
-  void set_text_in_range(Range old_range, std::string &&);
-  void set_text_in_range(Range old_range, const std::string &);
-  bool is_modified() const;
-  bool has_astral();
-  std::vector<TextSlice> chunks() const;
+    explicit TextBuffer (const std::string &text);
 
-  void reset(Text &&);
-  void flush_changes();
-  void serialize_changes(Serializer &);
-  bool deserialize_changes(Deserializer &);
-  const Text &base_text() const;
+    ~TextBuffer ();
 
-  optional<Range> find(const Regex &, Range range = Range::all_inclusive()) const;
-  std::vector<Range> find_all(const Regex &, Range range = Range::all_inclusive()) const;
-  unsigned find_and_mark_all(MarkerIndex &, MarkerIndex::MarkerId, bool exclusive,
-                             const Regex &, Range range = Range::all_inclusive()) const;
+    uint32_t size () const;
 
-  struct SubsequenceMatch {
-    std::u16string word;
-    std::vector<Point> positions;
-    std::vector<uint32_t> match_indices;
-    int32_t score;
-    bool operator==(const SubsequenceMatch &) const;
-  };
+    Point extent () const;
 
-  std::vector<SubsequenceMatch> find_words_with_subsequence_in_range(const std::string &, const std::string &, Range) const;
+    optional<std::string> line_for_row (uint32_t row);
 
-  class Snapshot {
-    friend class TextBuffer;
-    TextBuffer &buffer;
-    Layer &layer;
-    Layer &base_layer;
+    void with_line_for_row (uint32_t row, const std::function<void (const char8_t *, uint32_t)> &);
 
-    Snapshot(TextBuffer &, Layer &, Layer &);
+    optional<uint32_t> line_length_for_row (uint32_t row);
 
-  public:
-    ~Snapshot();
-    void flush_preceding_changes();
+    const uint8_t *line_ending_for_row (uint32_t row); // TODO: Importance of width?
 
-    uint32_t size() const;
-    Point extent() const;
-    uint32_t line_length_for_row(uint32_t) const;
-    std::vector<TextSlice> chunks() const;
-    std::vector<TextSlice> chunks_in_range(Range) const;
-    std::vector<std::pair<const char8_t *, uint32_t>> primitive_chunks() const;
-    std::string text() const;
-    std::string text_in_range(Range) const;
-    const Text &base_text() const;
-    optional<Range> find(const Regex &, Range range = Range::all_inclusive()) const;
-    std::vector<Range> find_all(const Regex &, Range range = Range::all_inclusive()) const;
-    std::vector<SubsequenceMatch> find_words_with_subsequence_in_range(std::string query, const std::string &extra_word_characters, Range range) const;
-  };
+    ClipResult clip_position (Point);
 
-  friend class Snapshot;
-  Snapshot *create_snapshot();
+    Point position_for_offset (uint32_t offset);
 
-  bool is_modified(const Snapshot *) const;
-  Patch get_inverted_changes(const Snapshot *) const;
+    std::string text ();
 
-  size_t layer_count()  const;
-  std::string get_dot_graph() const;
+    std::string text_in_range (Range range);
+
+    void set_text (std::string &&);
+
+    void set_text (const std::string &);
+
+    void set_text_in_range (Range old_range, std::string &&);
+
+//    void set_text_in_range (Range old_range, const std::string &); // NOTE: was never implemented
+
+    bool is_modified () const;
+
+    bool has_astral ();
+
+    std::vector<TextSlice> chunks () const;
+
+    void reset (Text &&);
+
+    void flush_changes ();
+
+    void serialize_changes (Serializer &);
+
+    bool deserialize_changes (Deserializer &);
+
+    const Text &base_text () const;
+
+    optional<Range> find (const Regex &, Range range = Range::all_inclusive()) const;
+
+    std::vector<Range> find_all (const Regex &, Range range = Range::all_inclusive()) const;
+
+    unsigned find_and_mark_all (MarkerIndex &, MarkerIndex::MarkerId, bool exclusive, const Regex &, Range range = Range::all_inclusive()) const;
+
+    struct SubsequenceMatch {
+        std::string word;
+        std::vector<Point> positions;
+        std::vector<uint32_t> match_indices;
+        int32_t score;
+
+        bool operator == (const SubsequenceMatch &) const;
+    };
+
+    std::vector<SubsequenceMatch> find_words_with_subsequence_in_range (const std::string &, const std::string &, Range) const;
+
+    class Snapshot {
+        friend class TextBuffer;
+
+        TextBuffer &buffer;
+        Layer &layer;
+        Layer &base_layer;
+
+        Snapshot (TextBuffer &, Layer &, Layer &);
+
+    public:
+        ~Snapshot ();
+
+        void flush_preceding_changes ();
+
+        uint32_t size () const;
+
+        Point extent () const;
+
+        uint32_t line_length_for_row (uint32_t) const;
+
+        std::vector<TextSlice> chunks () const;
+
+        std::vector<TextSlice> chunks_in_range (Range) const;
+
+        std::vector<std::pair<const char8_t *, uint32_t>> primitive_chunks () const;
+
+        std::string text () const;
+
+        std::string text_in_range (Range) const;
+
+        const Text &base_text () const;
+
+        optional<Range> find (const Regex &, Range range = Range::all_inclusive()) const;
+
+        std::vector<Range> find_all (const Regex &, Range range = Range::all_inclusive()) const;
+
+        std::vector<SubsequenceMatch> find_words_with_subsequence_in_range (std::string query, const std::string &extra_word_characters, Range range) const;
+    };
+
+    friend class Snapshot;
+
+    Snapshot *create_snapshot ();
+
+    bool is_modified (const Snapshot *) const;
+
+    Patch get_inverted_changes (const Snapshot *) const;
+
+    size_t layer_count () const;
+
+    std::string get_dot_graph () const;
 };
 
 #endif  // SUPERSTRING_TEXT_BUFFER_H_

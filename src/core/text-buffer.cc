@@ -19,7 +19,7 @@ using SubsequenceMatch = TextBuffer::SubsequenceMatch;
 
 uint32_t TextBuffer::MAX_CHUNK_SIZE_TO_COPY = 1024;
 
-static Text EMPTY_TEXT;
+static Text EMPTY_TEXT {};
 
 struct TextBuffer::Layer {
     Layer *previous_layer;
@@ -60,11 +60,13 @@ struct TextBuffer::Layer {
         return false;
     }
 
-    uint16_t character_at (Point position) const {
+    char8_t character_at (Point position) const {
         if (!uses_patch) return text->at(position);
 
         auto change = patch.get_change_starting_before_new_position(position);
+
         if (!change) return previous_layer->character_at(position);
+
         if (position < change->new_end) {
             return change->new_text->at(position.traversal(change->new_start));
         } else {
@@ -76,20 +78,18 @@ struct TextBuffer::Layer {
 
     ClipResult clip_position (Point position, bool splay = false) {
         if (!uses_patch) return text->clip_position(position);
+
         if (snapshot_count > 0) splay = false;
 
-        auto preceding_change = splay ?
-                                patch.grab_change_starting_before_new_position(position) :
-                                patch.get_change_starting_before_new_position(position);
+        auto preceding_change = splay
+                                ? patch.grab_change_starting_before_new_position(position)
+                                : patch.get_change_starting_before_new_position(position);
+
         if (!preceding_change) return previous_layer->clip_position(position);
 
         if (position < preceding_change->new_end) {
-            uint32_t preceding_change_base_offset =
-                    previous_layer->clip_position(preceding_change->old_start).offset;
-            uint32_t preceding_change_current_offset =
-                    preceding_change_base_offset +
-                    preceding_change->preceding_new_text_size -
-                    preceding_change->preceding_old_text_size;
+            uint32_t preceding_change_base_offset = previous_layer->clip_position(preceding_change->old_start).offset;
+            uint32_t preceding_change_current_offset = preceding_change_base_offset + preceding_change->preceding_new_text_size - preceding_change->preceding_old_text_size;
 
             ClipResult position_within_preceding_change =
                     preceding_change->new_text->clip_position(
@@ -126,7 +126,7 @@ struct TextBuffer::Layer {
 
             if (result.position == preceding_change->new_end && base_location.offset < previous_layer->size()) {
                 char8_t previous_character = 0;
-                if (preceding_change->new_text->size() > 0) {
+                if (!preceding_change->new_text->empty()) {
                     previous_character = preceding_change->new_text->content.back();
                 } else if (preceding_change->old_start.column > 0) {
                     previous_character = previous_layer->character_at(previous_column(preceding_change->old_start));
@@ -167,9 +167,9 @@ struct TextBuffer::Layer {
         } else if (current_position < change->new_end) {
 
             TextSlice slice = TextSlice(*change->new_text).slice({
-                current_position.traversal(change->new_start),
-                goal_position.traversal(change->new_start)
-            });
+                                                                         current_position.traversal(change->new_start),
+                                                                         goal_position.traversal(change->new_start)
+                                                                 });
 
             if (!slice.empty() && callback(slice)) return true;
             base_position = change->old_end;
@@ -179,8 +179,8 @@ struct TextBuffer::Layer {
         }
 
         auto changes = splay
-                ? patch.grab_changes_in_new_range(current_position, goal_position)
-                : patch.get_changes_in_new_range(current_position, goal_position);
+                       ? patch.grab_changes_in_new_range(current_position, goal_position)
+                       : patch.get_changes_in_new_range(current_position, goal_position);
 
         for (const auto &change : changes) {
             if (base_position < change.old_start) {
@@ -191,7 +191,7 @@ struct TextBuffer::Layer {
 
             TextSlice slice = TextSlice(*change.new_text)
                     .prefix(Point::min(change.new_end, goal_position)
-                    .traversal(change.new_start));
+                                    .traversal(change.new_start));
 
             if (!slice.empty() && callback(slice)) return true;
 
@@ -464,7 +464,7 @@ struct TextBuffer::Layer {
         std::vector<uint32_t> match_indices;
         int16_t score = 0;
 
-        bool operator< (const SubsequenceMatchVariant &other) const {
+        bool operator < (const SubsequenceMatchVariant &other) const {
             return query_index < other.query_index;
         }
     };
@@ -813,14 +813,14 @@ optional<uint32_t> TextBuffer::line_length_for_row (uint32_t row) {
     return top_layer->clip_position(Point { row, UINT32_MAX }, true).position.column;
 }
 
-const uint16_t *TextBuffer::line_ending_for_row (uint32_t row) {
+const uint8_t *TextBuffer::line_ending_for_row (uint32_t row) {
     if (row > extent().row) return nullptr;
 
-    static uint16_t LF[] = { '\n', 0 };
-    static uint16_t CRLF[] = { '\r', '\n', 0 };
-    static uint16_t NONE[] = { 0 };
+    static uint8_t LF[] = { '\n', 0 };
+    static uint8_t CRLF[] = { '\r', '\n', 0 };
+    static uint8_t NONE[] = { 0 };
 
-    const uint16_t *result = NONE;
+    const uint8_t *result = NONE;
     top_layer->for_each_chunk_in_range(
             clip_position(Point(row, UINT32_MAX)).position,
             Point(row + 1, 0),
@@ -898,11 +898,13 @@ void TextBuffer::set_text_in_range (Range old_range, string &&string) {
 
     auto start = clip_position(old_range.start);
     auto end = old_range.end == old_range.start ? start : clip_position(old_range.end);
+
     Point deleted_extent = end.position.traversal(start.position);
     Text new_text { move(string) };
     Point inserted_extent = new_text.extent();
     Point new_range_end = start.position.traverse(new_text.extent());
     uint32_t deleted_text_size = end.offset - start.offset;
+
     top_layer->extent_ = new_range_end.traverse(top_layer->extent_.traversal(end.position));
     top_layer->size_ += new_text.size() - deleted_text_size;
     top_layer->patch.splice(
@@ -944,21 +946,20 @@ vector<Range> TextBuffer::find_all (const Regex &regex, Range range) const {
     return top_layer->find_all_in_range(regex, range, false);
 }
 
-unsigned TextBuffer::find_and_mark_all (MarkerIndex &index, MarkerIndex::MarkerId next_id,
-                                        bool exclusive, const Regex &regex, Range range) const {
+unsigned TextBuffer::find_and_mark_all (MarkerIndex &index, MarkerIndex::MarkerId next_id, bool exclusive, const Regex &regex, Range range) const {
     return top_layer->find_and_mark_all_in_range(index, next_id, exclusive, regex, range, false);
 }
 
-bool TextBuffer::SubsequenceMatch::operator== (const SubsequenceMatch &other) const {
+bool TextBuffer::SubsequenceMatch::operator == (const SubsequenceMatch &other) const {
     return (
-            word == other.word &&
-            positions == other.positions &&
-            match_indices == other.match_indices &&
-            score == other.score
+            word == other.word
+            && positions == other.positions
+            && match_indices == other.match_indices
+            && score == other.score
     );
 }
 
-vector<SubsequenceMatch> TextBuffer::find_words_with_subsequence_in_range (const u16string &query, const u16string &non_word_characters, Range range) const {
+vector<SubsequenceMatch> TextBuffer::find_words_with_subsequence_in_range (const string &query, const string &non_word_characters, Range range) const {
     return top_layer->find_words_with_subsequence_in_range(query, non_word_characters, range);
 }
 
@@ -975,17 +976,18 @@ bool TextBuffer::is_modified (const Snapshot *snapshot) const {
 }
 
 string TextBuffer::get_dot_graph () const {
-    Layer *layer = top_layer;
     vector<Layer *> layers;
-    while (layer) {
-        layers.push_back(layer);
-        layer = layer->previous_layer;
+    std::stringstream result { "graph { label=\"--- buffer ---\" }\n" };
+
+    {
+        Layer *layer = top_layer;
+        while (layer) {
+            layers.push_back(layer);
+            layer = layer->previous_layer;
+        }
     }
 
-    std::stringstream result;
-    result << "graph { label=\"--- buffer ---\" }\n";
-    for (auto begin = layers.rbegin(), iter = begin, end = layers.rend();
-         iter != end; ++iter) {
+    for (auto begin = layers.rbegin(), iter = begin, end = layers.rend(); iter != end; ++iter) {
         auto layer = *iter;
         auto index = iter - begin;
         result << "graph { label=\"layer " << index << " (snapshot count " << layer->snapshot_count;
@@ -995,6 +997,7 @@ string TextBuffer::get_dot_graph () const {
         if (layer->text) result << "graph { label=\"text:\n" << *layer->text << "\" }\n";
         if (index > 0) result << layer->patch.get_dot_graph();
     }
+
     return result.str();
 }
 
@@ -1034,11 +1037,11 @@ uint32_t TextBuffer::Snapshot::line_length_for_row (uint32_t row) const {
     return layer.clip_position(Point { row, UINT32_MAX }).position.column;
 }
 
-u16string TextBuffer::Snapshot::text_in_range (Range range) const {
+string TextBuffer::Snapshot::text_in_range (Range range) const {
     return layer.text_in_range(range);
 }
 
-u16string TextBuffer::Snapshot::text () const {
+string TextBuffer::Snapshot::text () const {
     return layer.text_in_range({{ 0, 0 }, extent() });
 }
 
@@ -1050,7 +1053,7 @@ vector<TextSlice> TextBuffer::Snapshot::chunks () const {
     return layer.chunks_in_range({{ 0, 0 }, extent() });
 }
 
-vector<pair<const char16_t *, uint32_t>> TextBuffer::Snapshot::primitive_chunks () const {
+vector<pair<const char8_t *, uint32_t>> TextBuffer::Snapshot::primitive_chunks () const {
     return layer.primitive_chunks();
 }
 
@@ -1062,7 +1065,7 @@ vector<Range> TextBuffer::Snapshot::find_all (const Regex &regex, Range range) c
     return layer.find_all_in_range(regex, range, false);
 }
 
-vector<SubsequenceMatch> TextBuffer::Snapshot::find_words_with_subsequence_in_range (std::u16string query, const std::u16string &extra_word_characters, Range range) const {
+vector<SubsequenceMatch> TextBuffer::Snapshot::find_words_with_subsequence_in_range (std::string query, const std::string &extra_word_characters, Range range) const {
     return layer.find_words_with_subsequence_in_range(query, extra_word_characters, range);
 }
 
@@ -1070,8 +1073,7 @@ const Text &TextBuffer::Snapshot::base_text () const {
     return *base_layer.text;
 }
 
-TextBuffer::Snapshot::Snapshot (TextBuffer &buffer, TextBuffer::Layer &layer,
-                                TextBuffer::Layer &base_layer)
+TextBuffer::Snapshot::Snapshot (TextBuffer &buffer, TextBuffer::Layer &layer, TextBuffer::Layer &base_layer)
         : buffer { buffer }, layer { layer }, base_layer { base_layer } {}
 
 void TextBuffer::Snapshot::flush_preceding_changes () {

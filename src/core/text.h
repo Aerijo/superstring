@@ -13,58 +13,85 @@
 class TextSlice;
 
 struct ClipResult {
-  Point position;
-  uint32_t offset;
+    Point position {};
+    uint32_t offset {};
 };
 
 class Text {
-  friend class TextSlice;
+    friend class TextSlice;
 
- public:
-  static Point extent(const std::string &);
+public:
+    static Point extent (const std::string &);
 
-  std::string content;
-  std::vector<uint32_t> line_offsets;
-  Text(const std::string &&, const std::vector<uint32_t> &&);
+    std::string content;
+    std::vector<uint32_t> line_offsets;
 
-  using const_iterator = std::string::const_iterator;
+    Text (const std::string &&, const std::vector<uint32_t> &&);
 
-  Text();
-  Text(const std::string &);
-  Text(std::string &&);
-  Text(TextSlice slice);
-  Text(Deserializer &deserializer);
-  template<typename Iter>
-  Text(Iter begin, Iter end) : Text(std::string{begin, end}) {}
+    using const_iterator = std::string::const_iterator;
 
-  static Text concat(TextSlice a, TextSlice b);
-  static Text concat(TextSlice a, TextSlice b, TextSlice c);
-  void splice(Point start, Point deletion_extent, TextSlice inserted_slice);
+    Text ();
 
-  uint16_t at (Point position) const;
-  uint16_t at (uint32_t offset) const;
-  const_iterator begin() const;
-  const_iterator end() const;
-  inline const_iterator cbegin() const { return begin(); }
-  inline const_iterator cend() const { return end(); }
-  ClipResult clip_position(Point) const;
-  Point extent() const;
-  bool empty() const;
-  uint32_t offset_for_position(Point) const;
-  Point position_for_offset(uint32_t, uint32_t min_row = 0, bool clip_crlf = true) const;
-  uint32_t line_length_for_row(uint32_t row) const;
-  void append(TextSlice);
-  void assign(TextSlice);
-  void serialize(Serializer &) const;
-  uint32_t size() const;
-  const char8_t *data() const;
-  size_t digest() const;
-  void clear();
+    explicit Text (const std::string &);
 
-  bool operator!=(const Text &) const;
-  bool operator==(const Text &) const;
+    explicit Text (std::string &&);
 
-  friend std::ostream &operator<<(std::ostream &, const Text &);
+    explicit Text (TextSlice slice);
+
+    explicit Text (Deserializer &deserializer);
+
+    template<typename Iter>
+    Text (Iter begin, Iter end) : Text(std::string { begin, end }) {}
+
+    static Text concat (TextSlice a, TextSlice b);
+
+    static Text concat (TextSlice a, TextSlice b, TextSlice c);
+
+    void splice (Point start, Point deletion_extent, TextSlice inserted_slice);
+
+    char8_t at (Point position) const;
+
+    char8_t at (uint32_t offset) const;
+
+    const_iterator begin () const;
+
+    const_iterator end () const;
+
+    inline const_iterator cbegin () const { return begin(); }
+
+    inline const_iterator cend () const { return end(); }
+
+    ClipResult clip_position (Point) const;
+
+    Point extent () const;
+
+    bool empty () const;
+
+    uint32_t offset_for_position (Point) const;
+
+    Point position_for_offset (uint32_t, uint32_t min_row = 0, bool clip_crlf = true) const;
+
+    uint32_t line_length_for_row (uint32_t row) const;
+
+    void append (TextSlice);
+
+    void assign (TextSlice);
+
+    void serialize (Serializer &) const;
+
+    uint32_t size () const;
+
+    const char8_t *data () const;
+
+    size_t digest () const;
+
+    void clear ();
+
+    bool operator != (const Text &) const;
+
+    bool operator == (const Text &) const;
+
+    friend std::ostream &operator << (std::ostream &, const Text &);
 };
 
 #endif // SUPERSTRING_TEXT_H_

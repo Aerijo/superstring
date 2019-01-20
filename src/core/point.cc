@@ -16,7 +16,7 @@ Point Point::max () {
 
 Point::Point () : Point(0, 0) {}
 
-Point::Point (unsigned row, unsigned column) : row { row }, column { column } {}
+Point::Point (uint32_t row, uint32_t column) : row { row }, column { column } {}
 
 Point::Point (Deserializer &input) :
         row { input.read<uint32_t>() },
