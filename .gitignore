@@ -8,3 +8,4 @@ emsdk-portable
 package-lock.json
 .vscode
 .idea
+cmake-build-debug
