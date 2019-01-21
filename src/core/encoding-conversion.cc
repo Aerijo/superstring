@@ -28,23 +28,23 @@ enum ConversionResult {
 
 optional<EncodingConversion> transcoding_to(const char *name) {
   if (strcmp(name, "UTF-8") == 0) {
-    return EncodingConversion{UTF16_TO_UTF8, nullptr};
+    return optional { EncodingConversion{UTF16_TO_UTF8, nullptr} };
   } else {
     iconv_t conversion = iconv_open(name, "UTF-16LE");
     return conversion == reinterpret_cast<iconv_t>(-1) ?
       optional<EncodingConversion>{} :
-      EncodingConversion(GENERAL, conversion);
+      optional { EncodingConversion(GENERAL, conversion) };
   }
 }
 
 optional<EncodingConversion> transcoding_from(const char *name) {
   if (strcmp(name, "UTF-8") == 0) {
-    return EncodingConversion{UTF8_TO_UTF16, nullptr};
+    return optional { EncodingConversion{UTF8_TO_UTF16, nullptr} };
   } else {
     iconv_t conversion = iconv_open("UTF-16LE", name);
     return conversion == reinterpret_cast<iconv_t>(-1) ?
       optional<EncodingConversion>{} :
-      EncodingConversion(GENERAL, conversion);
+      optional { EncodingConversion(GENERAL, conversion) };
   }
 }
 
